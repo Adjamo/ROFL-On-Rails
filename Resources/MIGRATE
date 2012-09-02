@@ -1,0 +1,13 @@
+#! /bin/sh
+# Copy HTMLol files
+sudo cp HTMLol/* /usr/lib/cgi-bin/
+# Copy MySQL config
+sudo cp MySQL\ config.txt /usr/bin/
+# Copy media
+sudo cp Media/* /var/www/Media/
+# Change permissions
+sudo chmod 0755 /usr/lib/cgi-bin/*
+sudo chmod 0755 /var/www/Media/*
+sudo chmod 0755 /usr/bin/MySQL\ config.txt
+echo "Okai"
+

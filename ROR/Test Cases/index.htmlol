@@ -1,0 +1,22 @@
+#!/usr/bin/ruby /usr/bin/ROR.tab.rb
+<HTML>
+  <HEAD>
+    <TITLE>LOL Test Page</TITLE>
+
+  </HEAD>
+  <BODY>
+
+    <H1>html here</H1>
+
+    <?HAI
+
+      VISIBLE "<H2>LOLCode here</H2>" "<H2>More LOLCode stuff</H2>"
+      VISIBLE "3" "4" "5"
+
+    KTHXBYE?>
+
+    <H3>html here</H3>
+
+  </BODY>
+
+</HTML>

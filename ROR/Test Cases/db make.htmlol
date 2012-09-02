@@ -1,0 +1,23 @@
+#!/usr/bin/ruby /usr/bin/ROR.tab.rb
+<HTML>
+  <HEAD>
+    <TITLE>LOL Test Page</TITLE>
+
+  </HEAD>
+  <BODY>
+
+    <H1>html here</H1>
+
+    <?HAI
+
+      CAN HAS MYSQL
+        MAEK DB LOLXYZtest
+      KTHX
+
+    KTHXBYE?>
+
+    <H3>html here</H3>
+
+  </BODY>
+
+</HTML>

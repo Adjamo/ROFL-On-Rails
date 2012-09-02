@@ -1,0 +1,31 @@
+#!/usr/bin/ruby /usr/bin/ROR.tab.rb
+<HTML>
+  <HEAD>
+    <TITLE>LOL Test Page</TITLE>
+
+  </HEAD>
+  <BODY>
+
+    <H1>html here</H1>
+
+    <?HAI
+
+      I HAS A DOG ITZ 6
+      I HAS A CAT ITZ 4
+
+      IZ DOG BIGGR THAN CAT
+        YARLY
+          VISIBLE "Woof: "
+          VISIBLE DOG
+        NOWAI
+          VISIBLE "Miaw: "
+          VISIBLE CAT
+        KTHX
+
+    KTHXBYE?>
+
+    <H3>html here</H3>
+
+  </BODY>
+
+</HTML>

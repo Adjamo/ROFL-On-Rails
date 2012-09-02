@@ -1,0 +1,44 @@
+#!/usr/bin/ruby /usr/bin/ROR.tab.rb
+<HTML>
+  <HEAD>
+    <TITLE>LOL Test Page</TITLE>
+
+  </HEAD>
+  <BODY>
+
+    <H1>html here</H1>
+
+    <?HAI
+
+      VISIBLE "Three if statements are being processed: >, < and =="
+
+      IZ 2 BIGGR THAN 1
+        YARLY
+          VISIBLE "WIN"
+        NOWAI
+          VISIBLE "FAIL"
+        KTHX
+
+      IZ 1 SMALLR THAN 2
+        YARLY
+          VISIBLE "WIN"
+        NOWAI
+          VISIBLE "FAIL"
+        KTHX
+
+      BOTH SAEM 1 1
+        YARLY
+          VISIBLE "WIN"
+        NOWAI
+          VISIBLE "FAIL"
+        KTHX
+
+      VISIBLE "Complete"
+
+    KTHXBYE?>
+
+    <H3>html here</H3>
+
+  </BODY>
+
+</HTML>

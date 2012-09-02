@@ -1,0 +1,7 @@
+#! /bin/sh
+
+ruby /usr/bin/SCAFFOLD.rb
+ruby /usr/bin/TABEL.rb
+
+echo "Okai"
+

@@ -1,0 +1,913 @@
+#
+#   ROR.racc - the LOLCODE interpreter for ROFL On Rails
+#   Copyright (C) 2010, 2011  Adam Oliver
+# 
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as
+#   published by the Free Software Foundation, either version 3 of the
+#   License, or (at your option) any later version.
+# 
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU Affero General Public License for more details.
+# 
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+class ROTR
+
+  prechigh
+
+    # TODO: remove/replace
+    nonassoc UMINUS
+    left '*' '/'
+    left '+' '-'
+
+  # TODO remove/replace
+  preclow
+
+  # TODO remove/understand
+  options no_result_var
+
+  rule
+
+  #
+  # Parsing starts here
+  #
+  # TODO: make it so that you can have nonlol lolprog repetitions as many times as you want
+  target  : hashbang nonlol lolprog nonlol { result = nil }
+          # TODO: uncomment and see if it works
+          #| hashbang nonlol
+          | /* none */
+
+  #
+  # Create header
+  #
+  hashbang : HASHBANG { 
+    # This is a hashmap relating integers to user defined variables
+    @inthash = Hash.new { |h,k| h[k] = [] }
+
+    username_and_password = File.new("/usr/bin/MySQL config.txt", "r")
+
+    user_and_pass=[]
+    iter = 0
+
+    username_and_password.each do |line|
+      user_and_pass[iter] = line
+      iter = iter + 1
+    end
+
+    @mysql_username = user_and_pass[0][10..user_and_pass[0].length-2]
+    @mysql_password = user_and_pass[1][10..user_and_pass[1].length-2]
+
+
+    # Output valid HTML header, for the benifit of Apache2
+    cgi = CGI.new("html4") 
+    cgi.out {""}
+  }
+
+  #
+  # Output non-LOLCODE (e.g. HTML) without altering
+  #  
+  nonlol : nonlollist
+         | /* none */
+
+  nonlollist : NONLOL { puts val[0] }
+         | nonlollist NONLOL { puts val[1] }
+
+  #
+  # Process LOLCODE
+  #
+  lolprog    : HAI stmts KTHXBYE { puts result = val[1] }
+
+
+  stmts     : visible stmts { result = val[0].to_s + val[1].to_s }
+             | sql stmts { result = val[0].to_s + val[1].to_s }
+             | ifstmt stmts { result = val[0].to_s + val[1].to_s }
+             | vardec stmts { result = val[0].to_s + val[1].to_s }
+             | /* none */
+
+
+  #
+  # Process variable declaration
+  #
+  vardec : IHASA WORD ITZ POSINT
+  {
+  # I need to create some kind of hashmap, or something between val[1] and val[3]
+
+  @inthash[val[1]] << val[3]
+  return nil
+  }
+
+  #
+  # Process if statements
+  #
+  ifstmt : IZ intorusrvar BIGGRTHAN intorusrvar YARLY stmts NOWAI stmts KTHX
+    {
+      if val[1].to_i > val[3].to_i
+        return val[5]
+      else
+        return val[7]
+      end
+    }
+  | IZ intorusrvar SMALLRTHAN intorusrvar YARLY stmts NOWAI stmts KTHX
+    {
+      if val[1] < val[3]
+        return val[5]
+      else
+        return val[7]
+      end
+    }
+  | BOTHSAEM intorusrvar intorusrvar YARLY stmts NOWAI stmts KTHX
+    {
+      if val[1] == val[2]
+        return val[4]
+      else
+        return val[6]
+      end
+    }
+
+  intorusrvar : POSINT { return val[0] }
+              | WORD
+              {
+                usrvar = @inthash[val[0]]
+                return usrvar.to_s
+              }
+
+
+  #
+  # Process MySQL statements
+  #
+  sql : MYSQL sqlstmt KTHX { result = val[1] }
+
+  sqlstmt : 
+  sqlstmt MAEKDB WORD 
+  {
+    # Create Database
+
+    # MySQL Commands:
+    stream = <<-end
+      drop database if exists #{val[2]};
+      create database #{val[2]};
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write;
+      i = 0
+      while temp = f.gets
+        dave[i] = temp + "<br />"
+        i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+
+  }
+  | sqlstmt UZE WORD
+  {
+    # Use Database
+
+    @db = val[2]
+
+  }
+  # create table args is a number of repititions of: WORD IZ NUMBR
+  | sqlstmt MAEKTABELZ WORD OP createtableargs CP
+  {
+    # Make Table
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      create table #{val[2]} (#{val[4]}); 
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write;
+      i = 0
+      while temp = f.gets
+        dave[i] = temp + "<br />"
+        i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD
+  {
+    # Select Query
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      i = 0
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<br /><br />\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD EDIT
+  {
+    # Select Query
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      i = 0
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<table>\n
+<tr><td>\n
+<form action='./edit.php' method='post'>\n
+<input type='hidden' name='filename' value='#{file_name}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='colNames' value='"+colNames+"' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='hidden' name='datadata' value='" + temp[temp.index("\t")..temp.length] + "' />\n
+<input type='submit' value='Edit' />\n
+</form>\n
+</td></tr>\n
+</table>\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }  | sqlstmt GIMMEH wordorasterisk FROM WORD EDIT DEL
+  {
+    # Select Query
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      i = 0
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<table>\n
+<tr><td>\n
+<form action='./edit.php' method='post'>\n
+<input type='hidden' name='filename' value='#{file_name}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='colNames' value='"+colNames+"' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='hidden' name='datadata' value='" + temp[temp.index("\t")..temp.length] + "' />\n
+<input type='submit' value='Edit' />\n
+</form>\n
+</td><td>\n
+<form action='./delete.php' method='post'>\n
+<input type='hidden' name='filename' value='#{file_name}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='submit' value='Delete' />\n
+</form>\n
+</td></tr>\n
+</table>\n"
+        else
+          dave[i] = "<h3></h3>"
+
+        end
+        i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD DEL
+  {
+    # Select Query
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      i = 0
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<table>\n
+<tr><td>\n
+<form action='./delete.php' method='post'>\n
+<input type='hidden' name='filename' value='#{file_name}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='submit' value='Delete' />\n
+</form>\n
+</td></tr>\n
+</table>\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD WHERE GET_PARAMS
+  {
+
+    # Select Query
+
+    # Get the parameters from the GET query
+    this_uri = ENV["REQUEST_URI"]
+    require "uri"
+    uri = URI.parse(this_uri)
+    uri_query = uri.query
+    uri_query = uri_query.sub("+"," ")
+    
+    # Unescape the URI
+    uri_query = URI.unescape(uri_query)
+        
+    uri_query = uri_query.sub("="," like '%")
+    uri_query = uri_query + "%'"
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} where #{uri_query} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    i = 0
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<br /><br />\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+
+    if i == 0
+      puts "No record found"
+    end
+
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD WHERE GET_PARAMS EDIT
+  {
+
+    # Select Query
+
+    # Get the parameters from the GET query
+    this_uri = ENV["REQUEST_URI"]
+    require "uri"
+    uri = URI.parse(this_uri)
+    uri_query = uri.query
+    uri_query = uri_query.sub("+"," ")
+
+    # Unescape the URI
+    uri_query = URI.unescape(uri_query)
+
+    uri_query = uri_query.sub("="," like '%")
+    uri_query = uri_query + "%'"
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} where #{uri_query} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    i = 0
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<table>\n
+<tr><td>\n
+<form action='./edit.php' method='post'>\n
+<input type='hidden' name='filename' value='#{ENV["HTTP_REFERER"]}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='colNames' value='"+colNames+"' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='hidden' name='datadata' value='" + temp[temp.index("\t")..temp.length] + "' />\n
+<input type='submit' value='Edit' />\n
+</form>\n
+</td></tr>\n
+</table>\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+
+    if i == 0
+      puts "No record found"
+    end
+
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD WHERE GET_PARAMS DEL
+  {
+
+    # Select Query
+
+    # Get the parameters from the GET query
+    this_uri = ENV["REQUEST_URI"]
+    require "uri"
+    uri = URI.parse(this_uri)
+    uri_query = uri.query
+    uri_query = uri_query.sub("+"," ")
+
+    # Unescape the URI
+    uri_query = URI.unescape(uri_query)
+
+    uri_query = uri_query.sub("="," like '%")
+    uri_query = uri_query + "%'"
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} where #{uri_query} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    i = 0
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<table>\n
+<tr><td>\n
+<form action='./delete.php' method='post'>\n
+<input type='hidden' name='filename' value='#{file_name}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='submit' value='Delete' /></form>\n
+</td></tr>\n
+</table>\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+
+    if i == 0
+      puts "No record found"
+    end
+
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt GIMMEH wordorasterisk FROM WORD WHERE GET_PARAMS EDIT DEL
+  {
+
+    # Select Query
+
+    # Get the parameters from the GET query
+    this_uri = ENV["REQUEST_URI"]
+    require "uri"
+    uri = URI.parse(this_uri)
+    uri_query = uri.query
+    uri_query = uri_query.gsub("+"," ")
+
+    # Unescape the URI
+    uri_query = URI.unescape(uri_query)
+
+    uri_query = uri_query.sub("="," like '%")
+    uri_query = uri_query + "%'"
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      select #{val[2]} from #{val[4]} where #{uri_query} order by ID desc;
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Get the file name
+    file_name = ARGV[0]
+    slash_index = file_name.rindex("/")
+    if slash_index == nil
+      slash_index = -1
+    end
+    slash_index = slash_index + 1
+    file_name = file_name[slash_index..file_name.length]
+    
+    # Execute MySQL Commands
+    dave = []
+    i = 0
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write
+      colNames = ""
+
+      # Save the column titles
+      temp = f.gets
+      colNames = temp
+
+      while temp = f.gets
+        if i > -1
+          temp_comma = temp.gsub("\t",", ")
+          space_comma = temp_comma.index(","); space_comma = space_comma + 1
+          dave[i] = temp_comma[space_comma..temp_comma.length] + "
+<table>\n
+<tr><td>\n
+<form action='./edit.php' method='post'>\n
+<input type='hidden' name='filename' value='#{ENV["HTTP_REFERER"]}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='colNames' value='"+colNames+"' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='hidden' name='datadata' value='" + temp[temp.index("\t")..temp.length] + "' />\n
+<input type='submit' value='Edit' />\n
+</form>\n
+</td><td>\n
+<form action='./delete.php' method='post'>\n
+<input type='hidden' name='filename' value='#{file_name}' />\n
+<input type='hidden' name='table' value='#{val[4]}' />\n
+<input type='hidden' name='iddata' value='" + temp[0..temp.index("\t")] + "' />\n
+<input type='submit' value='Delete' /></form>\n
+</td></tr>\n
+</table>\n"
+       else
+          dave[i] = "<h3></h3>"
+
+       end
+       i += 1
+      end
+    }
+
+    if i == 0
+      puts "No record found"
+    end
+
+    dave.each {
+      |d|
+      puts d
+    }
+    return nil
+
+  }
+  | sqlstmt WORD insertstringorint
+  {
+    # Insert statement
+
+    # MySQL Commands:
+    stream = <<-end
+      use #{@db};
+      insert into #{val[1]} #{val[2]};
+      grant all on website_db.* to #{`id -un`.strip}@localhost;
+    end
+
+    # Execute MySQL Commands
+    dave = []
+    IO.popen("mysql -u #{@mysql_username} -p#{@mysql_password}", "r+") {|f|
+      f.puts stream
+      f.close_write;
+      i = 0
+      while temp = f.gets
+        dave[i] = temp + "<br />"
+        i += 1
+      end
+    }
+    dave.each {
+      |d|
+      puts d
+    }
+
+  }
+  | /* none */
+
+  # To help parse: insert into foo (bar,somthing) values ("a","b")
+  insertstringorint : 
+  wordcommalist ADDZ
+  {
+    return "(#{val[0]}) values (5, 4)"
+  }
+
+  stringorintcommalist :
+  POSINT { return val[0] }
+  stringorintforinsert COMMA { return "#{val[0]} , " }
+  stringorintforinsert COMMA stringorintforinsert { return "#{val[0]} , #{val[2]}" }
+
+  wordcommalist :
+  WORD {return val[0] }
+  | WORD COMMA WORD { return "#{val[0]}, #{val[2]}" }
+
+  # To help rule: insertstringorint
+  stringorintforinsert :
+  STRING { return val[0] }
+  | POSINT { return val[0] }
+
+
+  # To help parse: create table foo ([bar int]);
+  createtableargs :
+  createtableargs WORD IZ numbrorstring
+  {
+    if val[0] == nil
+      return val[1].to_s + " " + val[3] + val[0].to_s
+    else
+      # More than one argument, a "," is required
+      return val[1].to_s + " " + val[3] + "," + val[0].to_s
+    end
+  }
+  | /* none */
+
+  # To help parse: create table foo (bar [int/varchar(x)]);
+  numbrorstring : NUMBR { return "int" }
+                | YARN OP POSINT CP { return "varchar(#{val[2].to_i})" }
+
+  # To help parse: select MySQL statements like: where [STRING/WORD/POSINT] = [STRING/WORD/POSINT]
+  wordorstringornum : STRING { return val[0] }
+                    | POSINT { return val[0] }
+                    | WORD { return val[0] }
+
+  # To help parse: Select w from x where y [=/</>/like] z; MySQL command
+  comp : IZ { return "=" }
+       | EQ { return "=" }
+       | GT { return ">" }
+       | BIGGRTHAN { return ">" }
+       | SMALLRTHAN { return "<" }
+       | LT { return "<" }
+       | LIEK { return "like" }
+
+  # To help parse: Select [*/table] MySQL command
+  wordorasterisk : ASTERISK
+                 | WORD
+
+
+  visible : VISIBLE stringlist { return val[1] }
+
+  stringlist : 
+    | stringlist WORD
+    {
+      # Print a variable
+      usrvar = @inthash[val[1]]
+      return val[0].to_s + usrvar.to_s
+    }
+    | stringlist STRING
+    {
+      # remove first & last chars... they are " and "
+      return val[0].to_s + val[1][1..val[1].size].chop 
+    }
+
+
+end
+
+---- header ----
+#
+# (generated by racc 1.4.5)
+#
+require '/usr/bin/ROR.rex.rb'
+require 'cgi'
+
+---- inner ----
+
+---- footer ----
+
+  rotr = ROTR.new
+
+
+  # Open source file for reading
+  bFile = File.new(ARGV[0], "r")
+
+  # Copy contents of input file into a string
+  str = ""
+  bFile.each_line do |line|
+    str += line
+  end
+
+  # Parse
+  begin
+    rotr.scan_str(str)
+  rescue ParseError
+    puts 'parse error'
+  end
+
